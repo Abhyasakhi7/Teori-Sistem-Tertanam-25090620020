@@ -1,0 +1,92 @@
+.data
+pesan: .string "Sistem Tertanam UNY 2026"
+kunci: .string "EMBEDDED"
+buf_enc: .space 64
+buf_dec: .space 64
+h_asli: .string "Pesan asli       : "
+h_enc: .string "Vigenere encode  : "
+h_dec: .string "Vigenere decode  : "
+NL: .string "\n"
+.text
+main:
+ la a0, h_asli
+ la a1, pesan
+ jal ra, cetak_str
+ la a0, pesan
+ la a1, buf_enc
+ la a2, kunci
+ jal ra, vigenere_enc
+ la a0, h_enc
+ la a1, buf_enc
+ jal ra, cetak_str
+ la a0, buf_enc
+ la a1, buf_dec
+ la a2, kunci
+ jal ra, vigenere_dec
+ la a0, h_dec
+ la a1, buf_dec
+ jal ra, cetak_str
+ li a7, 10
+ ecall
+vigenere_enc:
+ li a3, 0 # mode 0 = encode
+ j vigenere
+vigenere_dec:
+ li a3, 1 # mode 1 = decode
+# vigenere(a0 = sumber, a1 = tujuan, a2 = kunci, a3 = mode)
+vigenere:
+ mv t4, a2 # t4 = penunjuk kunci
+ li t5, 26
+v_loop:
+ lbu t0, 0(a0)
+ beqz t0, v_end
+ li t1, 'A'
+ li t2, 'Z'
+ blt t0, t1, v_cek_kecil
+ bgt t0, t2, v_cek_kecil
+ j v_huruf
+v_cek_kecil:
+ li t1, 'a'
+ li t2, 'z'
+ blt t0, t1, v_simpan # bukan huruf -> salin
+ bgt t0, t2, v_simpan
+v_huruf:
+ lbu t3, 0(t4) # huruf kunci
+ bnez t3, v_kunci_ok
+ mv t4, a2 # kunci habis -> ulang
+ lbu t3, 0(t4)
+v_kunci_ok:
+ addi t4, t4, 1
+ li t6, 'a'
+ blt t3, t6, v_kunci_besar
+ addi t3, t3, -97 # kunci huruf kecil
+ j v_hitung
+v_kunci_besar:
+ addi t3, t3, -65 # kunci huruf kapital (A=0)
+v_hitung:
+ sub t0, t0, t1 # 0..25
+ beqz a3, v_maju
+ sub t0, t0, t3 # decode: p = c - k
+ add t0, t0, t5 # +26 agar tidak negatif
+ j v_mod
+v_maju:
+ add t0, t0, t3 # encode: c = p + k
+v_mod:
+ remu t0, t0, t5
+ add t0, t0, t1
+v_simpan:
+ sb t0, 0(a1)
+ addi a0, a0, 1
+ addi a1, a1, 1
+ j v_loop
+v_end:
+ sb zero, 0(a1)
+ ret
+cetak_str:
+ li a7, 4
+ ecall
+ mv a0, a1
+ ecall
+ la a0, NL
+ ecall
+ ret

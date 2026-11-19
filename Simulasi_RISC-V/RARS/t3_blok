@@ -1,0 +1,105 @@
+.data
+.align 2
+pesan: .string "Sistem Tertanam UNY 2026"
+.align 2
+buf_enc: .space 64
+buf_dec: .space 64
+h_asli: .string "Pesan asli    : "
+h_enc: .string "Blok encode   : "
+h_dec: .string "Blok decode   : "
+NL: .string "\n"
+.text
+main:
+ la a0, h_asli
+ la a1, pesan
+ jal ra, cetak_str
+ li s2, 0x52495343 # kunci K = "RISC"
+ li s3, 6 # jumlah word
+ la a0, pesan
+ la a1, buf_enc
+ mv a2, s3
+ mv a3, s2
+ jal ra, blok_enc
+ la a0, h_enc
+ li a7, 4
+ ecall
+ la s4, buf_enc # cetak cipher: tiap word heksadesimal
+ mv s5, s3
+cetak_loop:
+ beqz s5, cetak_selesai
+ lw a0, 0(s4)
+ li a7, 34
+ ecall
+ li a0, 32
+ li a7, 11
+ ecall
+ addi s4, s4, 4
+ addi s5, s5, -1
+ j cetak_loop
+cetak_selesai:
+ la a0, NL
+ li a7, 4
+ ecall
+ la a0, buf_enc
+ la a1, buf_dec
+ mv a2, s3
+ mv a3, s2
+ jal ra, blok_dec
+ la a0, h_dec
+ la a1, buf_dec
+ jal ra, cetak_str
+ li a7, 10
+ ecall
+# blok_enc(a0 = sumber, a1 = tujuan, a2 = jumlah word, a3 = K)
+blok_enc:
+ li t5, 0x9E3779B9
+be_word:
+ beqz a2, be_end
+ lw t0, 0(a0)
+ li t1, 8 # 8 putaran
+be_round:
+ xor t0, t0, a3
+ add t0, t0, t5
+ slli t2, t0, 7 # ROTL32(x,7) = (x<<7) | (x>>25)
+ srli t3, t0, 25
+ or t0, t2, t3
+ addi t1, t1, -1
+ bnez t1, be_round
+ sw t0, 0(a1)
+ addi a0, a0, 4
+ addi a1, a1, 4
+ addi a2, a2, -1
+ j be_word
+be_end:
+ ret
+# blok_dec(a0 = cipher, a1 = tujuan, a2 = jumlah word, a3 = K)
+blok_dec:
+ li t5, 0x9E3779B9
+bd_word:
+ beqz a2, bd_end
+ lw t0, 0(a0)
+ li t1, 8
+bd_round:
+ srli t2, t0, 7 # ROTR32(x,7) = (x>>7) | (x<<25)
+ slli t3, t0, 25
+ or t0, t2, t3
+ sub t0, t0, t5
+ xor t0, t0, a3
+ addi t1, t1, -1
+ bnez t1, bd_round
+ sw t0, 0(a1)
+ addi a0, a0, 4
+ addi a1, a1, 4
+ addi a2, a2, -1
+ j bd_word
+bd_end:
+ sb zero, 0(a1) # akhiri string
+ ret
+cetak_str:
+ li a7, 4
+ ecall
+ mv a0, a1
+ ecall
+ la a0, NL
+ ecall
+ ret

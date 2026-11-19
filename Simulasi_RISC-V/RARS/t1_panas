@@ -1,0 +1,109 @@
+.data
+X: .space 400
+Y: .space 400
+s_iter: .string "Iterasi "
+s_cek: .string " : checksum = "
+s_final: .string "\nMatriks suhu setelah 20 iterasi:\n"
+NL: .string "\n"
+.text
+main:
+ la s1, X # s1 = alamat X (suhu sekarang)
+ la s2, Y # s2 = alamat Y (suhu baru)
+ li s7, 10 # N = 10
+ li s8, 9 # batas indeks dalam (i,j = 1..8)
+# ---------- Inisialisasi: baris 0 = 100 pada X dan Y ----------
+ li t0, 0
+ li t1, 100
+init_tepi:
+ slli t2, t0, 2
+ add t3, s1, t2
+ sw t1, 0(t3)
+ add t3, s2, t2
+ sw t1, 0(t3)
+ addi t0, t0, 1
+ blt t0, s7, init_tepi
+# ---------- Loop utama 20 iterasi ----------
+ li s3, 1 # iterasi = 1
+iter_loop:
+ li s4, 1 # i = 1
+p_i:
+ li s5, 1 # j = 1
+p_j:
+ mul t0, s4, s7
+ add t0, t0, s5
+ slli t0, t0, 2
+ add t0, s1, t0 # t0 = alamat X[i][j]
+ lw t1, -40(t0) # atas   X[i-1][j]
+ lw t2, 40(t0) # bawah  X[i+1][j]
+ add t1, t1, t2
+ lw t2, -4(t0) # kiri   X[i][j-1]
+ add t1, t1, t2
+ lw t2, 4(t0) # kanan  X[i][j+1]
+ add t1, t1, t2
+ srli t1, t1, 2 # dibagi 4
+ sub t0, t0, s1 # offset byte
+ add t0, s2, t0 # alamat Y[i][j]
+ sw t1, 0(t0)
+ addi s5, s5, 1
+ blt s5, s8, p_j
+ addi s4, s4, 1
+ blt s4, s8, p_i
+ # salin Y -> X sekaligus hitung checksum
+ li t0, 0
+ li t6, 0
+ li t1, 100
+copy_loop:
+ slli t2, t0, 2
+ add t3, s2, t2
+ lw t4, 0(t3)
+ add t3, s1, t2
+ sw t4, 0(t3)
+ add t6, t6, t4
+ addi t0, t0, 1
+ blt t0, t1, copy_loop
+ # cetak "Iterasi k : checksum = c"
+ la a0, s_iter
+ li a7, 4
+ ecall
+ mv a0, s3
+ li a7, 1
+ ecall
+ la a0, s_cek
+ li a7, 4
+ ecall
+ mv a0, t6
+ li a7, 1
+ ecall
+ la a0, NL
+ li a7, 4
+ ecall
+ addi s3, s3, 1
+ li t0, 20
+ ble s3, t0, iter_loop
+# ---------- Cetak matriks akhir ----------
+ la a0, s_final
+ li a7, 4
+ ecall
+ li s4, 0
+pr_i:
+ li s5, 0
+pr_j:
+ mul t0, s4, s7
+ add t0, t0, s5
+ slli t0, t0, 2
+ add t0, s1, t0
+ lw a0, 0(t0)
+ li a7, 1
+ ecall
+ li a0, 9
+ li a7, 11
+ ecall
+ addi s5, s5, 1
+ blt s5, s7, pr_j
+ la a0, NL
+ li a7, 4
+ ecall
+ addi s4, s4, 1
+ blt s4, s7, pr_i
+ li a7, 10
+ ecall
